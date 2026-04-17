@@ -1039,13 +1039,14 @@ bool InferenceImpl::CheckSrcPadBlocked(GstObject *src) {
     if (dst == nullptr)
         return false;
 
-    if (strcmp(dst->name, "queue") > 0) {
+    if (g_str_has_prefix(dst->name, "queue")) {
         guint buf_cnt;
         g_object_get(dst, "current-level-buffers", &buf_cnt, NULL);
         GstState state, pending;
-        gst_element_get_state(GST_ELEMENT(dst), &state, &pending, GST_CLOCK_TIME_NONE);
+        GstStateChangeReturn ret =
+            gst_element_get_state(GST_ELEMENT(dst), &state, &pending, 100 * GST_MSECOND);
 
-        if ((buf_cnt > 1) && (state == GST_STATE_PAUSED)) {
+        if (ret != GST_STATE_CHANGE_ASYNC && (buf_cnt > 1) && (state == GST_STATE_PAUSED)) {
             blocked = true;
         }
     }
@@ -1274,6 +1275,9 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
             return GST_BASE_TRANSFORM_FLOW_DROPPED;
         }
     }
+
+    // Release _mutex before SubmitImages.
+    lock.unlock();
 
     return SubmitImages(gva_base_inference, metas, buffer);
 }

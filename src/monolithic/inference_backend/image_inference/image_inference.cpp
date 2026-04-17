@@ -7,7 +7,7 @@
 #include "openvino_image_inference.h"
 #include "utils.h"
 #ifdef _WIN32
-#include "image_inference_async_d3d11/image_inference_async_d3d11.h"
+#include "image_inference_async_d3d11.h"
 #else
 #include "image_inference_async/image_inference_async.h"
 #endif
@@ -89,7 +89,6 @@ ImageInference::Ptr ImageInference::createImageInferenceInstance(MemoryType inpu
             break;
         case ImagePreprocessorType::D3D11_SURFACE_SHARING:
             memory_type_to_use = MemoryType::D3D11;
-            throw std::runtime_error("Not implemented yet");
             break;
         default:
             throw std::runtime_error("Incorrect pre-process-backend, should be d3d11 or d3d11-surface-sharing");

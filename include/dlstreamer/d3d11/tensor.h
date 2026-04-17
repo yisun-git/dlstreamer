@@ -12,7 +12,8 @@
 namespace dlstreamer {
 
 namespace tensor::key {
-static constexpr auto d3d11_texture_ptr = "d3d11_texture_ptr"; // ID3D11Texture2D*
+static constexpr auto d3d11_texture_ptr = "d3d11_texture_ptr";       // ID3D11Texture2D*
+static constexpr auto d3d11_subresource_index = "d3d11_subresource"; // Array slice index for texture arrays
 };
 
 class D3D11Tensor : public BaseTensor {
@@ -29,6 +30,10 @@ class D3D11Tensor : public BaseTensor {
 
     int plane_index() {
         return handle(tensor::key::plane_index);
+    }
+
+    int subresource_index() {
+        return handle(tensor::key::d3d11_subresource_index, 0);
     }
 
     int offset_x() {

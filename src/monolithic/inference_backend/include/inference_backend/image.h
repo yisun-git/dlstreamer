@@ -14,6 +14,10 @@
 #include <memory>
 #include <type_traits>
 
+#ifdef _WIN32
+#include <d3d11.h>
+#endif
+
 using VaApiDisplayPtr = dlstreamer::ContextPtr;
 
 namespace {
@@ -69,8 +73,13 @@ struct Image {
             void *va_display;
         };
         struct { // if type==D3D11
+#ifdef _WIN32
+            struct ID3D11Texture2D *d3d11_texture;
+#else
             void *d3d11_texture;
-            void *d3d11_device;
+#endif
+            uint32_t d3d11_subresource_index; // Array slice index for texture arrays
+            void *gst_d3d11_device;           // GstD3D11Device* from source pipeline
         };
     };
     int dma_fd = -1; // if type==DMA_BUFFER
