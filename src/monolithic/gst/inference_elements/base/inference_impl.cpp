@@ -35,15 +35,13 @@
 #include <gst/analytics/analytics.h>
 #include <map>
 #include <memory>
-#include <openvino/runtime/core.hpp>
-#include <openvino/runtime/properties.hpp>
 #include <regex>
 #include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
 
-#if defined(ENABLE_VAAPI) && !defined(_WIN32)
+#ifdef ENABLE_VAAPI
 #include "vaapi_utils.h"
 #endif
 
@@ -54,6 +52,9 @@ namespace {
 
 const int DEFAULT_GPU_DRM_ID = 128;          // -> /dev/dri/renderD128
 const int MAX_STREAMS_SHARING_VADISPLAY = 4; // Maximum number of streams sharing the same VADisplay context
+constexpr const char *OV_NUM_STREAMS_KEY = "NUM_STREAMS";
+constexpr const char *OV_INFERENCE_NUM_THREADS_KEY = "INFERENCE_NUM_THREADS";
+constexpr const char *OV_ENABLE_CPU_PINNING_KEY = "ENABLE_CPU_PINNING";
 
 inline std::shared_ptr<Allocator> CreateAllocator(const char *const allocator_name) {
     std::shared_ptr<Allocator> allocator;
@@ -162,37 +163,37 @@ InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference
         // Map legacy OV1 inference engine params to OV2 properties to keep backward compatibility:
         if (device == "CPU") {
             if (inference.find(KEY_CPU_THROUGHPUT_STREAMS) != inference.end()) {
-                inference[ov::num_streams.name()] = inference[KEY_CPU_THROUGHPUT_STREAMS];
+                inference[OV_NUM_STREAMS_KEY] = inference[KEY_CPU_THROUGHPUT_STREAMS];
                 inference.erase(KEY_CPU_THROUGHPUT_STREAMS);
                 GVA_WARNING("Legacy setting detected 'ie-config=%s=x', use 'ie-config=%s=x' instead",
-                            KEY_CPU_THROUGHPUT_STREAMS, ov::num_streams.name());
+                            KEY_CPU_THROUGHPUT_STREAMS, OV_NUM_STREAMS_KEY);
             }
-            if (inference.find(ov::num_streams.name()) == inference.end()) {
-                inference[ov::num_streams.name()] =
+            if (inference.find(OV_NUM_STREAMS_KEY) == inference.end()) {
+                inference[OV_NUM_STREAMS_KEY] =
                     (gva_base_inference->cpu_streams == 0) ? "-1" : std::to_string(gva_base_inference->cpu_streams);
             }
             if (inference.find("CPU_THREADS_NUM") != inference.end()) {
-                inference[ov::inference_num_threads.name()] = inference["CPU_THREADS_NUM"];
+                inference[OV_INFERENCE_NUM_THREADS_KEY] = inference["CPU_THREADS_NUM"];
                 inference.erase("CPU_THREADS_NUM");
                 GVA_WARNING("Legacy setting detected 'ie-config=CPU_THREADS_NUM=x', use 'ie-config=%s=x' instead",
-                            ov::inference_num_threads.name());
+                            OV_INFERENCE_NUM_THREADS_KEY);
             }
             if (inference.find("CPU_BIND_THREAD") != inference.end()) {
-                inference[ov::hint::enable_cpu_pinning.name()] = (inference["CPU_BIND_THREAD"] == "YES") ? "1" : "0";
+                inference[OV_ENABLE_CPU_PINNING_KEY] = (inference["CPU_BIND_THREAD"] == "YES") ? "1" : "0";
                 inference.erase("CPU_BIND_THREAD");
                 GVA_WARNING("Legacy setting detected 'ie-config=CPU_BIND_THREAD=x', use 'ie-config=%s=x' instead",
-                            ov::hint::enable_cpu_pinning.name());
+                            OV_ENABLE_CPU_PINNING_KEY);
             }
         }
         if (device.find("GPU") != std::string::npos) {
             if (inference.find(KEY_GPU_THROUGHPUT_STREAMS) != inference.end()) {
-                inference[ov::num_streams.name()] = inference[KEY_GPU_THROUGHPUT_STREAMS];
+                inference[OV_NUM_STREAMS_KEY] = inference[KEY_GPU_THROUGHPUT_STREAMS];
                 inference.erase(KEY_GPU_THROUGHPUT_STREAMS);
                 GVA_WARNING("Legacy setting detected 'ie-config=%s=x', use 'ie-config=%s=x' instead",
-                            KEY_GPU_THROUGHPUT_STREAMS, ov::num_streams.name());
+                            KEY_GPU_THROUGHPUT_STREAMS, OV_NUM_STREAMS_KEY);
             }
-            if (inference.find(ov::num_streams.name()) == inference.end()) {
-                inference[ov::num_streams.name()] =
+            if (inference.find(OV_NUM_STREAMS_KEY) == inference.end()) {
+                inference[OV_NUM_STREAMS_KEY] =
                     (gva_base_inference->gpu_streams == 0) ? "-1" : std::to_string(gva_base_inference->gpu_streams);
             }
         }
@@ -216,11 +217,6 @@ InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference
         }
     }
     base[KEY_CAPS_FEATURE] = std::to_string(static_cast<int>(gva_base_inference->caps_feature));
-
-    const int batch_timeout = gva_base_inference->batch_timeout;
-    if (batch_timeout > -1) {
-        inference[ov::auto_batch_timeout.name()] = std::to_string(batch_timeout);
-    }
 
     // add KEY_VAAPI_THREAD_POOL_SIZE, KEY_VAAPI_FAST_SCALE_LOAD_FACTOR elements to preprocessor config
     // other elements from pre_processor info are consumed by model proc info

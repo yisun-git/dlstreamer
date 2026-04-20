@@ -7,7 +7,6 @@
 set (TARGET_NAME "gvatrack")
 
 find_package(OpenCV REQUIRED core imgproc)
-find_package(OpenVINO REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 
@@ -44,6 +43,10 @@ PRIVATE
     ${GLIB2_LIBRARIES}
     common
     utils
-    openvino::runtime
     ${ADDITIONAL_LINKS}
 )
+
+if(TARGET openvino::runtime)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_GVATRACK_OPENVINO_EXTRACTOR)
+endif()

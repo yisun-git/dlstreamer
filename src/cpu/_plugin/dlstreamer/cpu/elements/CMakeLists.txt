@@ -15,10 +15,12 @@ endif()
 target_link_libraries(${TARGET_NAME} PRIVATE     
     dlstreamer_api
     rate_adjust
-    meta_smooth
     tensor_convert
     tensor_histogram
     tensor_sliding_window
     tensor_postproc
 )
+if(TARGET meta_smooth)
+    target_link_libraries(${TARGET_NAME} PRIVATE meta_smooth)
+endif()
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

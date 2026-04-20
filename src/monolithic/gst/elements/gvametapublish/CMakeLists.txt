@@ -40,6 +40,7 @@ PUBLIC
     ${CMAKE_CURRENT_BINARY_DIR}
 PRIVATE
     ${GSTREAMER_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/include/dlstreamer/gst/metadata
 )
 
 target_link_libraries(${TARGET_NAME}

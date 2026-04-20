@@ -8,7 +8,9 @@
 
 #include <gst/gst.h>
 
+#ifdef ENABLE_AUDIO_INFERENCE_ELEMENTS_BUILT
 #include "gstgvaaudiodetect.h"
+#endif
 #ifdef ENABLE_GENAI
 #include "gstgvaaudiotranscribe.h"
 #include "gstgvagenai.h"
@@ -19,7 +21,9 @@
 
 #include "gstgvametaaggregate.h"
 #include "gstgvametaconvert.h"
+#ifdef ENABLE_GVATRACK
 #include "gstgvatrack.h"
+#endif
 #include "gstgvawatermarkimpl.h"
 #include "gvadeskew.h"
 #include "gvafpsthrottle.hpp"
@@ -41,16 +45,20 @@ static gboolean plugin_init(GstPlugin *plugin) {
         return FALSE;
     if (!gst_element_register(plugin, "gvaclassify", GST_RANK_NONE, gst_gva_classify_get_type()))
         return FALSE;
+#ifdef ENABLE_AUDIO_INFERENCE_ELEMENTS_BUILT
     if (!gst_element_register(plugin, "gvaaudiodetect", GST_RANK_NONE, gst_gva_audio_detect_get_type()))
         return FALSE;
+#endif
 #ifdef ENABLE_GENAI
     if (!gst_element_register(plugin, "gvaaudiotranscribe", GST_RANK_NONE, gst_gva_audio_transcribe_get_type()))
         return FALSE;
     if (!gst_element_register(plugin, "gvagenai", GST_RANK_NONE, GST_TYPE_GVAGENAI))
         return FALSE;
 #endif
+#ifdef ENABLE_GVATRACK
     if (!gst_element_register(plugin, "gvatrack", GST_RANK_NONE, GST_TYPE_GVA_TRACK))
         return FALSE;
+#endif
     if (!gst_element_register(plugin, "gvawatermark", GST_RANK_NONE, GST_TYPE_GVA_WATERMARK))
         return FALSE;
     if (!gst_element_register(plugin, "gvametaconvert", GST_RANK_NONE, GST_TYPE_GVA_META_CONVERT))

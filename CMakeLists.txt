@@ -119,10 +119,36 @@ cmake_dependent_option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation
 option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
 option(ENABLE_REALSENSE "Parameter to enable RelaseSense plugin compilation" OFF)
 option(ENABLE_GENAI "Enables GenAI elements" OFF)
+option(ENABLE_RISCV "Enable RISC-V build mode (disables OpenVINO-dependent components)" OFF)
 # Enable GenAI by default on Windows.
 # It can be enabled on Ubuntu but there is no support for Fedora.
 if(WIN32)
     set(ENABLE_GENAI ON)
+endif()
+
+if(ENABLE_RISCV)
+    set(ENABLE_OPENVINO OFF)
+else()
+    set(ENABLE_OPENVINO ON)
+endif()
+
+if(ENABLE_OPENVINO)
+    find_package(OpenVINO QUIET COMPONENTS Runtime)
+    if(NOT OpenVINO_FOUND)
+        message(WARNING "OpenVINO Runtime not found. Disabling OpenVINO-dependent components.")
+        set(ENABLE_OPENVINO OFF)
+    endif()
+endif()
+
+if(NOT ENABLE_OPENVINO)
+    if(ENABLE_GENAI)
+        message(WARNING "ENABLE_GENAI requires OpenVINO. Disabling ENABLE_GENAI.")
+        set(ENABLE_GENAI OFF CACHE BOOL "Enables GenAI elements" FORCE)
+    endif()
+    if(ENABLE_AUDIO_INFERENCE_ELEMENTS)
+        message(WARNING "ENABLE_AUDIO_INFERENCE_ELEMENTS requires OpenVINO. Disabling ENABLE_AUDIO_INFERENCE_ELEMENTS.")
+        set(ENABLE_AUDIO_INFERENCE_ELEMENTS OFF CACHE BOOL "Enables audio inference elements" FORCE)
+    endif()
 endif()
 
 message("ENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION}")
@@ -130,6 +156,39 @@ message("ENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION}")
 message("ENABLE_REALSENSE=${ENABLE_REALSENSE}")
 
 # Define compiler flags
+
+set(_DLS_LOCAL_PKGCONFIG_DIRS)
+if(ENABLE_RISCV)
+    set(_DLS_LOCAL_PKGCONFIG_CANDIDATES
+            "${CMAKE_BINARY_DIR}/deps/install/lib/pkgconfig"
+            "${CMAKE_BINARY_DIR}/deps/gstreamer-bin/lib/pkgconfig"
+            "${CMAKE_SOURCE_DIR}/build-riscv/deps/install/lib/pkgconfig"
+            "${CMAKE_SOURCE_DIR}/build-riscv/deps/gstreamer-bin/lib/pkgconfig")
+else()
+    set(_DLS_LOCAL_PKGCONFIG_CANDIDATES
+            "${CMAKE_BINARY_DIR}/deps/install/lib/pkgconfig"
+            "${CMAKE_BINARY_DIR}/deps/gstreamer-bin/lib/pkgconfig"
+            "${CMAKE_SOURCE_DIR}/build/deps/install/lib/pkgconfig"
+            "${CMAKE_SOURCE_DIR}/build/deps/gstreamer-bin/lib/pkgconfig")
+endif()
+
+foreach(_dir IN LISTS _DLS_LOCAL_PKGCONFIG_CANDIDATES)
+    if(EXISTS "${_dir}")
+        list(APPEND _DLS_LOCAL_PKGCONFIG_DIRS "${_dir}")
+    endif()
+endforeach()
+
+if(_DLS_LOCAL_PKGCONFIG_DIRS)
+    set(_DLS_PKG_CONFIG_PATH "$ENV{PKG_CONFIG_PATH}")
+    foreach(_dir IN LISTS _DLS_LOCAL_PKGCONFIG_DIRS)
+        if(_DLS_PKG_CONFIG_PATH)
+            set(_DLS_PKG_CONFIG_PATH "${_dir}:${_DLS_PKG_CONFIG_PATH}")
+        else()
+            set(_DLS_PKG_CONFIG_PATH "${_dir}")
+        endif()
+    endforeach()
+    set(ENV{PKG_CONFIG_PATH} "${_DLS_PKG_CONFIG_PATH}")
+endif()
 
 if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /permissive-")
@@ -190,6 +249,16 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_CONFIG_H")
 
 find_package(Threads REQUIRED)
 find_package(PkgConfig REQUIRED)
+
+set(_DLSTREAMER_GST_PKGCONFIG_DIR "${CMAKE_BINARY_DIR}/deps/gstreamer-bin/lib/pkgconfig")
+if(EXISTS "${_DLSTREAMER_GST_PKGCONFIG_DIR}/gstreamer-1.0.pc")
+    if(DEFINED ENV{PKG_CONFIG_PATH} AND NOT "$ENV{PKG_CONFIG_PATH}" STREQUAL "")
+        set(ENV{PKG_CONFIG_PATH} "${_DLSTREAMER_GST_PKGCONFIG_DIR}:$ENV{PKG_CONFIG_PATH}")
+    else()
+        set(ENV{PKG_CONFIG_PATH} "${_DLSTREAMER_GST_PKGCONFIG_DIR}")
+    endif()
+    message(STATUS "Using bundled GStreamer pkg-config from ${_DLSTREAMER_GST_PKGCONFIG_DIR}")
+endif()
 
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 link_directories(${GSTREAMER_LIBRARY_DIRS})

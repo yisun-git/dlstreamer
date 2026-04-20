@@ -21,8 +21,10 @@ PRIVATE
     dlstreamer_gst
     dlstreamer_logger
     rate_adjust
-    meta_smooth
 )
+if(TARGET meta_smooth)
+    target_link_libraries(${TARGET_NAME} PRIVATE meta_smooth)
+endif()
 if(WIN32)
     target_link_libraries(${TARGET_NAME}
         PRIVATE

@@ -19,6 +19,14 @@ if(ENABLE_GENAI)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_GENAI)
 endif()
 
+if(TARGET gvatrack)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_GVATRACK)
+endif()
+
+if(TARGET audio_inference_elements)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_AUDIO_INFERENCE_ELEMENTS_BUILT)
+endif()
+
 if(UNIX)
     target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=unused-variable -Wno-error=unused-parameter)
 endif()
@@ -30,13 +38,19 @@ PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../elements/gvagenai/
     ${CMAKE_CURRENT_SOURCE_DIR}/../elements/gvametaaggregate/
     ${CMAKE_CURRENT_SOURCE_DIR}/../elements/gvametaconvert/
-    ${CMAKE_CURRENT_SOURCE_DIR}/../elements/gvatrack/
+    ${CMAKE_CURRENT_SOURCE_DIR}/../elements/gvametapublish/
+    ${CMAKE_CURRENT_SOURCE_DIR}/../elements/gvametapublish/base/
+    ${CMAKE_CURRENT_SOURCE_DIR}/../elements/gvametapublish/file/
     ${CMAKE_CURRENT_SOURCE_DIR}/../elements/gvawatermark/
     ${CMAKE_CURRENT_SOURCE_DIR}/../elements/gvawatermark3d/
-    ${CMAKE_CURRENT_SOURCE_DIR}/../elements/gvamotiondetect/
     ${CMAKE_CURRENT_SOURCE_DIR}/../elements/gvadeskew/
     ${CMAKE_CURRENT_SOURCE_DIR}/../elements/gvafpsthrottle/
+    ${CMAKE_SOURCE_DIR}/include/dlstreamer/gst/metadata
 )
+
+if(TARGET gvatrack)
+    target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../elements/gvatrack/)
+endif()
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
@@ -44,9 +58,20 @@ PRIVATE
     common
     elements
     inference_elements
-    audio_inference_elements
-    gvatrack
+    gvametapublish
 )
+
+if(TARGET gstdlstreamer_bins)
+    target_link_libraries(${TARGET_NAME} PRIVATE gstdlstreamer_bins)
+endif()
+
+if(TARGET audio_inference_elements)
+    target_link_libraries(${TARGET_NAME} PRIVATE audio_inference_elements)
+endif()
+
+if(TARGET gvatrack)
+    target_link_libraries(${TARGET_NAME} PRIVATE gvatrack)
+endif()
 
 if(ENABLE_GENAI)
     target_link_libraries(${TARGET_NAME} PRIVATE gvagenai)

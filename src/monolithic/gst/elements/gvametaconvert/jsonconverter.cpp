@@ -352,6 +352,7 @@ json convert_frame_classification(GstGvaMetaConvert *converter, GstBuffer *buffe
  * 2. Has a classification descriptor indicating it originates from gvaaudiotranscribe
  * This function should only be called from the audio processing path.
  */
+#ifdef AUDIO
 json convert_audio_transcription_classification(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     assert(converter && buffer && "Expected valid pointers GstGvaMetaConvert and GstBuffer");
 
@@ -430,6 +431,7 @@ json convert_audio_transcription_classification(GstGvaMetaConvert *converter, Gs
 
     return res;
 }
+#endif
 
 json convert_radar_process_meta(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     UNUSED(converter);

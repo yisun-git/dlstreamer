@@ -8,7 +8,6 @@ set (TARGET_NAME "inference_elements")
 
 find_package(OpenCV REQUIRED core imgproc)
 find_package(PkgConfig REQUIRED)
-find_package(OpenVINO REQUIRED Runtime)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
@@ -83,15 +82,22 @@ PRIVATE
     dlstreamer_logger
     common
     image_inference
-    image_inference_openvino
     pre_proc
     opencv_pre_proc
     logger
 PUBLIC
-    openvino::runtime
     runtime_feature_toggling
     model_proc
 )
+
+if(TARGET image_inference_openvino)
+    target_link_libraries(${TARGET_NAME} PRIVATE image_inference_openvino)
+endif()
+
+if(TARGET openvino::runtime)
+    target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_OPENVINO_BACKEND)
+endif()
 
 if(${ENABLE_VAAPI} AND NOT(WIN32))
     target_link_libraries(${TARGET_NAME} PRIVATE va_api_wrapper image_inference_async)

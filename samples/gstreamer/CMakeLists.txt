@@ -4,7 +4,11 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-add_subdirectory(cpp/draw_face_attributes)
+if(TARGET frame_inference)
+        add_subdirectory(cpp/draw_face_attributes)
+else()
+        message(STATUS "Skipping samples/gstreamer/cpp/draw_face_attributes because frame_inference target is unavailable")
+endif()
 
 if(NOT(WIN32))
 add_custom_target(copy_model_proc ALL)

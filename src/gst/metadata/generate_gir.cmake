@@ -28,6 +28,11 @@ pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0 gstreamer-analytics-1.0)
 # Resolve GIR search paths via pkg-config to find Gst-1.0.gir
 pkg_get_variable(GSTREAMER_GIRDIR gstreamer-1.0 girdir)
 pkg_get_variable(GSTREAMER_LIBDIR gstreamer-1.0 libdir)
+pkg_get_variable(GSTANALYTICS_GIRDIR gstreamer-analytics-1.0 girdir)
+
+if(NOT GSTANALYTICS_GIRDIR)
+    set(GSTANALYTICS_GIRDIR "${GSTREAMER_GIRDIR}")
+endif()
 
 # Option to generate GIR from source (for updating the committed GIR file)
 option(GENERATE_GIR_FROM_SOURCE "Generate GIR file from source instead of using committed version" OFF)
@@ -63,6 +68,7 @@ if(GENERATE_GIR_FROM_SOURCE)
             --identifier-prefix=GstAnalytics
             --symbol-prefix=gst_analytics
             --add-include-path=${GSTREAMER_GIRDIR}
+            --add-include-path=${GSTANALYTICS_GIRDIR}
             --include=Gst-1.0
             --include=GstAnalytics-1.0
             --library-path=${LIB_OUTPUT_DIR}
@@ -105,6 +111,7 @@ add_custom_command(
     COMMAND ${G_IR_COMPILER}
         --output=${TYPELIB_OUTPUT}
         --includedir=${GSTREAMER_GIRDIR}
+        --includedir=${GSTANALYTICS_GIRDIR}
         ${GIR_OUTPUT}
     DEPENDS ${GIR_OUTPUT}
     COMMENT "Compiling GIR to typelib"

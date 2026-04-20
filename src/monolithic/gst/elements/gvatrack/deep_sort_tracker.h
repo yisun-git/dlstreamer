@@ -12,7 +12,9 @@
 #include <gva_utils.h>
 
 #include <opencv2/opencv.hpp>
+#ifdef ENABLE_GVATRACK_OPENVINO_EXTRACTOR
 #include <openvino/openvino.hpp>
+#endif
 
 #include <deque>
 #include <memory>
@@ -111,7 +113,8 @@ class Track {
     void predict();
 };
 
-// Deep SORT feature extractor using OpenVINO
+// Optional Deep SORT feature extractor using OpenVINO.
+#ifdef ENABLE_GVATRACK_OPENVINO_EXTRACTOR
 class FeatureExtractor {
   public:
     FeatureExtractor(const std::string &model_path, const std::string &device = "CPU");
@@ -128,6 +131,7 @@ class FeatureExtractor {
     int input_height_;
     int input_width_;
 };
+#endif
 
 // Deep SORT tracker implementation
 class DeepSortTracker : public ITracker {

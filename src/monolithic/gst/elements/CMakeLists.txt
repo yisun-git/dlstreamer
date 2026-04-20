@@ -83,6 +83,7 @@ PRIVATE
     ${GSTVIDEO_INCLUDE_DIRS}
     ${GSTALLOC_INCLUDE_DIRS}
     ${GSTRTP_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/include/dlstreamer/gst/metadata
 )
 
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
@@ -102,7 +103,6 @@ PRIVATE
     dlstreamer_api
     common
     image_inference
-    image_inference_openvino
     logger
     json-hpp
     json-schema-validator
@@ -110,6 +110,10 @@ PRIVATE
     dlstreamer_gst_meta
     gstvideoanalyticsmeta
 )
+
+if(TARGET image_inference_openvino)
+    target_link_libraries(${TARGET_NAME} PRIVATE image_inference_openvino)
+endif()
 
 if(NOT MSVC)
     target_link_libraries(${TARGET_NAME} PRIVATE

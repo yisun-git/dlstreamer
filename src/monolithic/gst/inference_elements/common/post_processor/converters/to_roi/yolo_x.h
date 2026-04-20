@@ -14,7 +14,6 @@
 
 #include <map>
 #include <memory>
-#include <openvino/core/type/float16.hpp>
 #include <string>
 #include <vector>
 
