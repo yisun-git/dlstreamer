@@ -1,0 +1,25 @@
+diff --git a/subprojects/gst-plugins-bad/gst-libs/gst/meson.build b/subprojects/gst-plugins-bad/gst-libs/gst/meson.build
+index 6815f2167a..3a32a0602e 100644
+--- a/subprojects/gst-plugins-bad/gst-libs/gst/meson.build
++++ b/subprojects/gst-plugins-bad/gst-libs/gst/meson.build
+@@ -8,10 +8,20 @@ subdir('d3dshader')
+ subdir('d3d11')
+ subdir('d3d12')
+ 
++# Provide defaults so downstream plugins can check gstcuda_dep even when
++# CUDA support is skipped on riscv64.
++gstcuda_dep = dependency('', required : false)
++gstcuda_stub_dep = dependency('', required : false)
++
+ # cuda can depend on d3d11
+ if host_machine.cpu_family() != 'riscv64'
+   subdir('cuda')
+ endif
++
++if host_machine.cpu_family() == 'riscv64'
++  gstcuda_dep = dependency('', required : false)
++  gstcuda_stub_dep = dependency('', required : false)
++endif
+ 
+ subdir('dxva')
+ subdir('insertbin')

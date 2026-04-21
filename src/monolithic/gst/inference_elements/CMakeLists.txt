@@ -11,7 +11,9 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
-pkg_check_modules(GSTANALYTICS gstreamer-analytics-1.0>=1.16 REQUIRED)
+if(ENABLE_GST_ANALYTICS)
+    pkg_check_modules(GSTANALYTICS gstreamer-analytics-1.0>=1.16 REQUIRED)
+endif()
 
 file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/base/*.cpp
@@ -76,7 +78,6 @@ PRIVATE
     ${GSTREAMER_LIBRARIES}
     ${GSTVIDEO_LIBRARIES}
     ${GSTALLOC_LIBRARIES}
-    ${GSTANALYTICS_LIBRARIES}
     ${OpenCV_LIBS}
     dlstreamer_api
     dlstreamer_logger
@@ -89,6 +90,10 @@ PUBLIC
     runtime_feature_toggling
     model_proc
 )
+
+if(ENABLE_GST_ANALYTICS)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${GSTANALYTICS_LIBRARIES})
+endif()
 
 if(TARGET image_inference_openvino)
     target_link_libraries(${TARGET_NAME} PRIVATE image_inference_openvino)

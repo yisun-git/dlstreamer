@@ -22,6 +22,57 @@ ExternalProject_Add(
 )
 
 ExternalProject_Get_Property(opencv_contrib SOURCE_DIR)
+
+set(OPENCV_CMAKE_ARGS
+    -DBUILD_TESTS=OFF
+    -DCMAKE_BUILD_TYPE=Release
+    -DOPENCV_GENERATE_PKGCONFIG=ON
+    -DBUILD_SHARED_LIBS=ON
+    -DBUILD_PERF_TESTS=OFF
+    -DBUILD_EXAMPLES=OFF
+    -DBUILD_opencv_apps=OFF
+    -DOPENCV_EXTRA_MODULES_PATH=${SOURCE_DIR}/modules
+    -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}/opencv-bin
+    -DWITH_VA=ON
+    -DWITH_VA_INTEL=ON
+    -DWITH_FFMPEG=OFF
+    -DWITH_TBB=ON
+    -DWITH_OPENMP=OFF
+    -DWITH_IPP=OFF
+    -DWITH_EIGEN=OFF
+)
+
+if(CMAKE_CROSSCOMPILING)
+    if(CMAKE_TOOLCHAIN_FILE)
+        list(APPEND OPENCV_CMAKE_ARGS
+            -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+        )
+    endif()
+
+    if(CMAKE_SYSROOT)
+        list(APPEND OPENCV_CMAKE_ARGS
+            -DCMAKE_SYSROOT=${CMAKE_SYSROOT}
+        )
+    endif()
+
+    # Cross-compilation toolchains often don't provide host runtimes needed by
+    # OpenCV language bindings, and these targets are not required by dlstreamer.
+    list(APPEND OPENCV_CMAKE_ARGS
+        -DBUILD_JAVA=OFF
+        -DBUILD_OBJC=OFF
+        -DBUILD_opencv_java=OFF
+        -DBUILD_opencv_java_bindings_generator=OFF
+        -DBUILD_opencv_js=OFF
+        -DBUILD_opencv_js_bindings_generator=OFF
+        -DBUILD_opencv_objc_bindings_generator=OFF
+        -DBUILD_opencv_python_bindings_generator=OFF
+        -DBUILD_opencv_python2=OFF
+        -DBUILD_opencv_python3=OFF
+        -DBUILD_opencv_python_tests=OFF
+        -DOPENCV_PYTHON_SKIP_DETECTION=ON
+    )
+endif()
+
 ExternalProject_Add(
     opencv
     PREFIX ${CMAKE_BINARY_DIR}/opencv
@@ -31,21 +82,7 @@ ExternalProject_Add(
     CMAKE_GENERATOR     Ninja
     TEST_COMMAND        ""
     INSTALL_COMMAND     ninja install
-    CMAKE_ARGS          -DBUILD_TESTS=OFF
-                        -DCMAKE_BUILD_TYPE=Release
-                        -DOPENCV_GENERATE_PKGCONFIG=ON
-                        -DBUILD_SHARED_LIBS=ON
-                        -DBUILD_PERF_TESTS=OFF
-                        -DBUILD_EXAMPLES=OFF
-                        -DBUILD_opencv_apps=OFF
-                        -DOPENCV_EXTRA_MODULES_PATH=${SOURCE_DIR}/modules
-                        -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}/opencv-bin
-                        -DWITH_VA=ON
-                        -DWITH_VA_INTEL=ON
-                        -DWITH_FFMPEG=OFF
-                        -DWITH_TBB=ON
-                        -DWITH_OPENMP=OFF
-                        -DWITH_IPP=OFF
+    CMAKE_ARGS          ${OPENCV_CMAKE_ARGS}
 )
 
 if (INSTALL_DLSTREAMER)

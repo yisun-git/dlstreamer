@@ -34,6 +34,41 @@ if(NOT GSTANALYTICS_GIRDIR)
     set(GSTANALYTICS_GIRDIR "${GSTREAMER_GIRDIR}")
 endif()
 
+# Some cross pkg-config setups may return malformed paths like
+# <sysroot>/home/... which should actually be /home/.... Normalize those here.
+function(_dls_normalize_path _in _out)
+    set(_p "${${_in}}")
+
+    if(CMAKE_SYSROOT AND _p MATCHES "^${CMAKE_SYSROOT}(/.*)$")
+        set(_candidate "${CMAKE_MATCH_1}")
+        if(_candidate MATCHES "^/home/" AND EXISTS "${_candidate}")
+            set(_p "${_candidate}")
+        endif()
+    endif()
+
+    set(${_out} "${_p}" PARENT_SCOPE)
+endfunction()
+
+_dls_normalize_path(GSTREAMER_GIRDIR DLS_GSTREAMER_GIRDIR)
+_dls_normalize_path(GSTANALYTICS_GIRDIR DLS_GSTANALYTICS_GIRDIR)
+
+set(GIR_COMPILER_INCLUDE_ARGS)
+foreach(_gir_dir
+        "${DLS_GSTREAMER_GIRDIR}"
+        "${DLS_GSTANALYTICS_GIRDIR}"
+        "${CMAKE_SYSROOT}/usr/share/gir-1.0"
+        "${CMAKE_SOURCE_DIR}/build-riscv/deps/gstreamer-bin/share/gir-1.0"
+        "${CMAKE_SOURCE_DIR}/build-riscv/deps/gstreamer/src/gstreamer/girs"
+        "${CMAKE_SOURCE_DIR}/build-riscv/deps/gstreamer/src/gstreamer-build/subprojects/gst-plugins-bad/gst-libs/gst/analytics")
+    if(_gir_dir AND EXISTS "${_gir_dir}")
+        list(APPEND GIR_COMPILER_INCLUDE_ARGS "--includedir=${_gir_dir}")
+    endif()
+endforeach()
+
+if(NOT GIR_COMPILER_INCLUDE_ARGS)
+    message(WARNING "No valid GIR include directories found; introspection may fail")
+endif()
+
 # Option to generate GIR from source (for updating the committed GIR file)
 option(GENERATE_GIR_FROM_SOURCE "Generate GIR file from source instead of using committed version" OFF)
 
@@ -67,8 +102,8 @@ if(GENERATE_GIR_FROM_SOURCE)
             --nsversion=${GIR_VERSION}
             --identifier-prefix=GstAnalytics
             --symbol-prefix=gst_analytics
-            --add-include-path=${GSTREAMER_GIRDIR}
-            --add-include-path=${GSTANALYTICS_GIRDIR}
+            --add-include-path=${DLS_GSTREAMER_GIRDIR}
+            --add-include-path=${DLS_GSTANALYTICS_GIRDIR}
             --include=Gst-1.0
             --include=GstAnalytics-1.0
             --library-path=${LIB_OUTPUT_DIR}
@@ -110,8 +145,8 @@ add_custom_command(
     OUTPUT ${TYPELIB_OUTPUT}
     COMMAND ${G_IR_COMPILER}
         --output=${TYPELIB_OUTPUT}
-        --includedir=${GSTREAMER_GIRDIR}
-        --includedir=${GSTANALYTICS_GIRDIR}
+        --includedir=${DLS_GSTANALYTICS_GIRDIR}
+        ${GIR_COMPILER_INCLUDE_ARGS}
         ${GIR_OUTPUT}
     DEPENDS ${GIR_OUTPUT}
     COMMENT "Compiling GIR to typelib"

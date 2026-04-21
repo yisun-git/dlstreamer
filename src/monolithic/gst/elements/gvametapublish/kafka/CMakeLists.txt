@@ -7,7 +7,20 @@
 set (TARGET_NAME "gvametapublishkafka")
 
 find_package(PkgConfig REQUIRED)
-find_library(KAFKA rdkafka++ REQUIRED)
+set(_KAFKA_LIBRARY_HINTS
+    ${CMAKE_LIBRARY_PATH}
+    ${CMAKE_SOURCE_DIR}/build-riscv/deps/rdkafka-bin/lib
+    ${CMAKE_BINARY_DIR}/../deps/rdkafka-bin/lib
+    ${CMAKE_BINARY_DIR}/deps/rdkafka-bin/lib
+)
+set(_KAFKA_INCLUDE_HINTS
+    ${CMAKE_INCLUDE_PATH}
+    ${CMAKE_SOURCE_DIR}/build-riscv/deps/rdkafka-bin/include
+    ${CMAKE_BINARY_DIR}/../deps/rdkafka-bin/include
+    ${CMAKE_BINARY_DIR}/deps/rdkafka-bin/include
+)
+find_library(KAFKA rdkafka++ HINTS ${_KAFKA_LIBRARY_HINTS} NO_CMAKE_FIND_ROOT_PATH REQUIRED)
+find_path(KAFKA_INCLUDE_DIR librdkafka/rdkafkacpp.h HINTS ${_KAFKA_INCLUDE_HINTS} NO_CMAKE_FIND_ROOT_PATH REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 
 
@@ -27,6 +40,7 @@ PUBLIC
 PRIVATE
     ${GLIB2_INCLUDE_DIRS}
     ${GSTREAMER_INCLUDE_DIRS}
+    ${KAFKA_INCLUDE_DIR}
 )
 
 target_link_libraries(${TARGET_NAME}

@@ -1,0 +1,18 @@
+diff --git a/subprojects/gst-plugins-bad/gst-libs/gst/meson.build b/subprojects/gst-plugins-bad/gst-libs/gst/meson.build
+index 3319d61680..6815f2167a 100644
+--- a/subprojects/gst-plugins-bad/gst-libs/gst/meson.build
++++ b/subprojects/gst-plugins-bad/gst-libs/gst/meson.build
+@@ -7,8 +7,12 @@ subdir('codecs')
+ subdir('d3dshader')
+ subdir('d3d11')
+ subdir('d3d12')
++
+ # cuda can depend on d3d11
+-subdir('cuda')
++if host_machine.cpu_family() != 'riscv64'
++  subdir('cuda')
++endif
++
+ subdir('dxva')
+ subdir('insertbin')
+ subdir('interfaces')

@@ -119,7 +119,7 @@ cmake_dependent_option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation
 option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
 option(ENABLE_REALSENSE "Parameter to enable RelaseSense plugin compilation" OFF)
 option(ENABLE_GENAI "Enables GenAI elements" OFF)
-option(ENABLE_RISCV "Enable RISC-V build mode (disables OpenVINO-dependent components)" OFF)
+option(ENABLE_RISCV "Enable RISC-V build mode (disables OpenVINO-dependent components)" ON)
 # Enable GenAI by default on Windows.
 # It can be enabled on Ubuntu but there is no support for Fedora.
 if(WIN32)
@@ -127,6 +127,13 @@ if(WIN32)
 endif()
 
 if(ENABLE_RISCV)
+    if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^riscv")
+        message(FATAL_ERROR
+            "ENABLE_RISCV=ON requires a RISC-V target toolchain/configuration. "
+            "Current CMAKE_SYSTEM_PROCESSOR='${CMAKE_SYSTEM_PROCESSOR}'. "
+            "Use -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv-vsi.cmake or run make build-riscv."
+        )
+    endif()
     set(ENABLE_OPENVINO OFF)
 else()
     set(ENABLE_OPENVINO ON)

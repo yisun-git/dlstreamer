@@ -15,7 +15,24 @@ OPENVINO_DIR 				?= /opt/intel/openvino_2026
 DLSTREAMER_VERSION 	:= 0.0.0
 BUILD_TYPE 			?= Release
 ENABLE_GENAI        := OFF
-ENABLE_RISCV       ?= OFF
+ENABLE_RISCV       ?= ON
+
+RISCV_TOOLCHAIN_FILE ?= ${PROJECT_DIRECTORY}/cmake/toolchains/riscv-vsi.cmake
+RISCV_BUILD_DIR      ?= build-riscv
+RISCV_DEPENDENCY_DIR ?= ${RISCV_BUILD_DIR}/deps
+RISCV_MAIN_BUILD_DIR ?= ${RISCV_BUILD_DIR}/main
+RISCV_TOOLCHAIN_ROOT ?= /opt/dlstreamer/riscv/toolchain
+RISCV_SYSROOT        ?= /opt/dlstreamer/riscv/sysroot
+
+RISCV_CMAKE_PREFIX_PATH ?= ${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/install;${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/gstreamer-bin;${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/opencv-bin;${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/rdkafka-bin
+RISCV_CMAKE_INCLUDE_PATH ?= ${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/install/include:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/gstreamer-bin/include:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/rdkafka-bin/include
+RISCV_CMAKE_LIBRARY_PATH ?= ${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/install/lib:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/gstreamer-bin/lib:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/rdkafka-bin/lib
+RISCV_BUILD_JOBS ?= 1
+
+RISCV_HTTP_PROXY_RAW ?= $(or ${http_proxy},${HTTP_PROXY})
+RISCV_HTTPS_PROXY_RAW ?= $(or ${https_proxy},${HTTPS_PROXY})
+RISCV_HTTP_PROXY ?= $(patsubst https://%,http://%,${RISCV_HTTP_PROXY_RAW})
+RISCV_HTTPS_PROXY ?= $(patsubst https://%,http://%,${RISCV_HTTPS_PROXY_RAW})
 
 DOCKER_PRIVATE_REGISTRY := # Empty on purpose
 
@@ -63,13 +80,106 @@ build: dependencies ## Compile Deep Learning Streamer
 		-DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
 		-DENABLE_PAHO_INSTALLATION=ON \
 		-DENABLE_RDKAFKA_INSTALLATION=ON \
-		-DENABLE_VAAPI=ON \
+		-DENABLE_VAAPI=OFF \
 		-DENABLE_RISCV=${ENABLE_RISCV} \
 		-DENABLE_SAMPLES=ON \
 		-DENABLE_GENAI=${ENABLE_GENAI} \
 		-DGENERATE_GIR_FROM_SOURCE=${BUILD_GIRS} \
 		-DENABLE_TESTS=OFF; \
 	cmake --build build -j$(shell nproc)
+
+.PHONY: dependencies-riscv
+dependencies-riscv: riscv-sysroot-fixups ## Build dependencies with RISC-V toolchain
+	@rm -f ${RISCV_DEPENDENCY_DIR}/CMakeCache.txt
+	@rm -rf ${RISCV_DEPENDENCY_DIR}/CMakeFiles
+	HTTP_PROXY=${RISCV_HTTP_PROXY} HTTPS_PROXY=${RISCV_HTTPS_PROXY} \
+	http_proxy=${RISCV_HTTP_PROXY} https_proxy=${RISCV_HTTPS_PROXY} \
+	PKG_CONFIG_PATH= \
+	LIBRARY_PATH=${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/install/lib:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/gstreamer-bin/lib:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/opencv-bin/lib:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/rdkafka-bin/lib \
+	cmake \
+		-B ${RISCV_DEPENDENCY_DIR} \
+		-DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+		-DCMAKE_TOOLCHAIN_FILE=${RISCV_TOOLCHAIN_FILE} \
+		-DRISCV_TOOLCHAIN_ROOT=${RISCV_TOOLCHAIN_ROOT} \
+		-DRISCV_SYSROOT=${RISCV_SYSROOT} \
+		./dependencies
+	HTTP_PROXY=${RISCV_HTTP_PROXY} HTTPS_PROXY=${RISCV_HTTPS_PROXY} \
+	http_proxy=${RISCV_HTTP_PROXY} https_proxy=${RISCV_HTTPS_PROXY} \
+	PKG_CONFIG_PATH= \
+	LIBRARY_PATH=${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/install/lib:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/gstreamer-bin/lib:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/opencv-bin/lib:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/rdkafka-bin/lib \
+	cmake --build ${RISCV_DEPENDENCY_DIR} -j${RISCV_BUILD_JOBS}
+
+.PHONY: riscv-sysroot-fixups
+riscv-sysroot-fixups: ## Ensure required unversioned symlinks exist in RISC-V sysroot
+	@set -e; \
+	sysroot="${RISCV_SYSROOT}"; \
+	if [ ! -d "$$sysroot" ]; then \
+		echo "RISC-V sysroot not found, skip fixups: $$sysroot"; \
+		exit 0; \
+	fi; \
+	fix_link() { \
+		base="$$1"; \
+		for dir in "$$sysroot/usr/lib/riscv64-linux-gnu" "$$sysroot/lib/riscv64-linux-gnu" "$$sysroot/usr/lib" "$$sysroot/lib"; do \
+			if [ ! -d "$$dir" ]; then \
+				continue; \
+			fi; \
+			if [ -e "$$dir/$$base" ]; then \
+				return 0; \
+			fi; \
+			cand=$$(find "$$dir" -maxdepth 1 -type f -name "$$base.*" | sort | head -n 1); \
+			if [ -n "$$cand" ]; then \
+				ln -sfn "$$(basename "$$cand")" "$$dir/$$base"; \
+				echo "Created symlink: $$dir/$$base -> $$(basename "$$cand")"; \
+				return 0; \
+			fi; \
+		done; \
+	}; \
+	fix_link libva.so; \
+	fix_link libva-drm.so; \
+	fix_link libXv.so; \
+	fix_link libGL.so; \
+	fix_link libdl.so; \
+	fix_link libgstva-1.0.so; \
+	fix_link libgstanalytics-1.0.so; \
+	if [ ! -f "$$sysroot/usr/include/va/va.h" ] && [ -f "/usr/include/va/va.h" ]; then \
+		mkdir -p "$$sysroot/usr/include"; \
+		rm -rf "$$sysroot/usr/include/va"; \
+		cp -a /usr/include/va "$$sysroot/usr/include/"; \
+		echo "Staged VA headers into sysroot: $$sysroot/usr/include/va"; \
+	fi
+
+.PHONY: build-riscv
+build-riscv: dependencies-riscv ## Cross-compile Deep Learning Streamer for RISC-V
+	@rm -rf ${RISCV_MAIN_BUILD_DIR}
+	HTTP_PROXY=${RISCV_HTTP_PROXY} HTTPS_PROXY=${RISCV_HTTPS_PROXY} \
+	http_proxy=${RISCV_HTTP_PROXY} https_proxy=${RISCV_HTTPS_PROXY} \
+	PKG_CONFIG_PATH= \
+	LIBRARY_PATH=${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/install/lib:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/gstreamer-bin/lib:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/opencv-bin/lib:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/rdkafka-bin/lib \
+	cmake \
+		-B ${RISCV_MAIN_BUILD_DIR} \
+		-DCMAKE_TOOLCHAIN_FILE=${RISCV_TOOLCHAIN_FILE} \
+		-DRISCV_TOOLCHAIN_ROOT=${RISCV_TOOLCHAIN_ROOT} \
+		-DRISCV_SYSROOT=${RISCV_SYSROOT} \
+		-DENABLE_RISCV=ON \
+		-DPKG_CONFIG_USE_CMAKE_PREFIX_PATH=OFF \
+		-DCMAKE_PREFIX_PATH:PATH="${RISCV_CMAKE_PREFIX_PATH}" \
+		-DCMAKE_INCLUDE_PATH:PATH=${RISCV_CMAKE_INCLUDE_PATH} \
+		-DCMAKE_LIBRARY_PATH:PATH=${RISCV_CMAKE_LIBRARY_PATH} \
+		-DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+		-DENABLE_PAHO_INSTALLATION=ON \
+		-DENABLE_RDKAFKA_INSTALLATION=ON \
+		-DENABLE_VAAPI=OFF \
+		-DENABLE_SAMPLES=ON \
+		-DENABLE_OPENVINO=OFF \
+		-DENABLE_GST_ANALYTICS=ON \
+		-DENABLE_ITT=ON \
+		-DENABLE_GENAI=${ENABLE_GENAI} \
+		-DENABLE_TESTS=OFF; \
+	HTTP_PROXY=${RISCV_HTTP_PROXY} HTTPS_PROXY=${RISCV_HTTPS_PROXY} \
+	http_proxy=${RISCV_HTTP_PROXY} https_proxy=${RISCV_HTTPS_PROXY} \
+	PKG_CONFIG_PATH= \
+	LIBRARY_PATH=${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/install/lib:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/gstreamer-bin/lib:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/opencv-bin/lib:${PROJECT_DIRECTORY}/${RISCV_DEPENDENCY_DIR}/rdkafka-bin/lib \
+	cmake --build ${RISCV_MAIN_BUILD_DIR} -j${RISCV_BUILD_JOBS}
 
 .PHONY: install
 install: build ## Build and install Deep Learning Streamer
@@ -184,6 +294,7 @@ image22: ## Build the Deep Learning Streamer docker image based on Ubuntu 22.04
 .PHONY: clean
 clean: ## Cleanup any build artifacts
 	@rm -rf build
+	@rm -rf ${RISCV_BUILD_DIR}
 
 .PHONY: help
 help: ## Display help about the commands

@@ -48,8 +48,10 @@
 #ifndef VA_INVALID_SURFACE
 #define VA_INVALID_SURFACE (-1)
 #endif
+#ifndef _VA_H_
 typedef int VASurfaceID; // simple integral placeholder
 typedef void *VADisplay; // opaque pointer placeholder
+#endif
 #endif
 
 #define ELEMENT_LONG_NAME "Implementation for detection/classification/recognition results labeling"
@@ -397,7 +399,7 @@ static gboolean gst_gva_watermark_impl_set_caps(GstBaseTransform *trans, GstCaps
 // Resolve VA display only when VAAPI enabled (Linux path); otherwise stub.
 #ifdef ENABLE_VAAPI
 #ifndef _WIN32
-static VADisplay resolve_va_display_from_gst_display(GstObject *gst_display_obj) {
+[[maybe_unused]] static VADisplay resolve_va_display_from_gst_display(GstObject *gst_display_obj) {
     if (!gst_display_obj)
         return nullptr;
     static GModule *mod = nullptr;
@@ -421,12 +423,12 @@ static VADisplay resolve_va_display_from_gst_display(GstObject *gst_display_obj)
     return get_va ? get_va((gpointer)gst_display_obj) : nullptr;
 }
 #else
-static VADisplay resolve_va_display_from_gst_display(GstObject *) {
+[[maybe_unused]] static VADisplay resolve_va_display_from_gst_display(GstObject *) {
     return nullptr;
 }
 #endif
 #else
-static VADisplay resolve_va_display_from_gst_display(GstObject *) {
+[[maybe_unused]] static VADisplay resolve_va_display_from_gst_display(GstObject *) {
     return nullptr;
 }
 #endif
@@ -436,6 +438,12 @@ static void gst_gva_watermark_impl_set_context(GstElement *elem, GstContext *con
     auto *self = GST_GVA_WATERMARK_IMPL(elem);
     const gchar *ctx_type = gst_context_get_context_type(context);
     const GstStructure *s = gst_context_get_structure(context);
+
+#if !defined(ENABLE_VAAPI) || defined(_WIN32)
+    (void)self;
+    (void)ctx_type;
+    (void)s;
+#endif
 
 #if defined(ENABLE_VAAPI) && !defined(_WIN32)
     if (!self->gst_ctx)
@@ -511,11 +519,11 @@ static bool buffer_has_va(GstBuffer *buf) {
 // Minimal fallback: resolve VASurfaceID from GstVA at runtime (no unstable headers)
 #ifdef ENABLE_VAAPI
 #ifdef _WIN32
-static VASurfaceID get_surface_from_buffer(GstBuffer *) {
+[[maybe_unused]] static VASurfaceID get_surface_from_buffer(GstBuffer *) {
     return VA_INVALID_SURFACE;
 }
 #else
-static VASurfaceID get_surface_from_buffer(GstBuffer *buf) {
+[[maybe_unused]] static VASurfaceID get_surface_from_buffer(GstBuffer *buf) {
     if (!buf)
         return VA_INVALID_SURFACE;
 
@@ -559,7 +567,7 @@ static VASurfaceID get_surface_from_buffer(GstBuffer *buf) {
 }
 #endif
 #else
-static VASurfaceID get_surface_from_buffer(GstBuffer *) {
+[[maybe_unused]] static VASurfaceID get_surface_from_buffer(GstBuffer *) {
     return VA_INVALID_SURFACE;
 }
 #endif

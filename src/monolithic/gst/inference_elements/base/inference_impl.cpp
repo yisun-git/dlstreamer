@@ -609,7 +609,7 @@ MemoryType GetMemoryType(MemoryType input_image_memory_type, ImagePreprocessorTy
     return type;
 }
 
-int getGPURenderDevId(GvaBaseInference *gva_base_inference) {
+[[maybe_unused]] int getGPURenderDevId(GvaBaseInference *gva_base_inference) {
     int gpuRenderDevId = 0;
 
     if (gva_base_inference->caps_feature == VA_MEMORY_CAPS_FEATURE ||
@@ -651,7 +651,7 @@ int getGPURenderDevId(GvaBaseInference *gva_base_inference) {
     return gpuRenderDevId;
 }
 
-bool canReuseSharedVADispCtx(GvaBaseInference *gva_base_inference, size_t max_streams) {
+[[maybe_unused]] bool canReuseSharedVADispCtx(GvaBaseInference *gva_base_inference, size_t max_streams) {
 
     const std::string device(gva_base_inference->device);
 
@@ -697,9 +697,9 @@ bool canReuseSharedVADispCtx(GvaBaseInference *gva_base_inference, size_t max_st
 dlstreamer::ContextPtr createVaDisplay(GvaBaseInference *gva_base_inference) {
     assert(gva_base_inference);
 
-    const std::string device(gva_base_inference->device);
     dlstreamer::ContextPtr display = nullptr;
-#ifndef _WIN32
+#if defined(ENABLE_VAAPI) && !defined(_WIN32)
+    const std::string device(gva_base_inference->device);
     if ((gva_base_inference->priv->va_display) &&
         (canReuseSharedVADispCtx(gva_base_inference, MAX_STREAMS_SHARING_VADISPLAY))) {
         // Reuse existing VADisplay context (i.e. priv->va_display) if it fits
@@ -721,6 +721,8 @@ dlstreamer::ContextPtr createVaDisplay(GvaBaseInference *gva_base_inference) {
                          "No shared VADisplay found for device '%s', failed to create or retrieve a VADisplay context.",
                          device.c_str());
     }
+#else
+    (void)gva_base_inference;
 #endif
     return display;
 }

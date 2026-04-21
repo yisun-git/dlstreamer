@@ -22,7 +22,10 @@ PRIVATE
     opencv_remove_background
     opencv_tensor_normalize
     tensor_postproc_human_pose
-    opencv_warp_affine
 )
+
+if (TARGET opencv_warp_affine)
+    target_link_libraries(${TARGET_NAME} PRIVATE opencv_warp_affine)
+endif()
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

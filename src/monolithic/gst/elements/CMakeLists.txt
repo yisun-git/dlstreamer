@@ -12,7 +12,7 @@ pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
 pkg_check_modules(GSTRTP gstreamer-rtp-1.0 REQUIRED)
-if(NOT MSVC)
+if(${ENABLE_VAAPI} AND NOT MSVC)
   pkg_check_modules(GSTVA REQUIRED IMPORTED_TARGET gstreamer-va-1.0)
 endif()
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
@@ -115,7 +115,7 @@ if(TARGET image_inference_openvino)
     target_link_libraries(${TARGET_NAME} PRIVATE image_inference_openvino)
 endif()
 
-if(NOT MSVC)
+if(${ENABLE_VAAPI} AND NOT MSVC)
     target_link_libraries(${TARGET_NAME} PRIVATE
         ${GSTVA_LIBRARIES}
         dlstreamer_vaapi
@@ -126,7 +126,9 @@ if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
         target_link_libraries(${TARGET_NAME} PRIVATE ${GSTAUDIO_LIBRARIES})
 endif()
 
-add_subdirectory(gvaattachroi)
+if(ENABLE_GST_ANALYTICS)
+    add_subdirectory(gvaattachroi)
+endif()
 add_subdirectory(gvametapublish)
 add_subdirectory(gvapython)
 add_subdirectory(gvatrack)

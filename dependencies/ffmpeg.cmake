@@ -9,6 +9,45 @@ include(ExternalProject)
 # When changing version, you will also need to change the download hash
 set(DESIRED_VERSION 6.1.1)
 
+set(FFMPEG_CONFIGURE_ARGS
+    --enable-pic
+    --enable-shared
+    --enable-static
+    --enable-avfilter
+    --enable-vaapi
+    --extra-cflags=-I/include
+    --extra-ldflags=-L/lib
+    --extra-libs=-lpthread
+    --extra-libs=-lm
+    --disable-programs
+    --prefix=${CMAKE_BINARY_DIR}/install
+)
+
+if(CMAKE_CROSSCOMPILING)
+    list(APPEND FFMPEG_CONFIGURE_ARGS
+        --enable-cross-compile
+        --arch=riscv64
+        --target-os=linux
+        --cc=${CMAKE_C_COMPILER}
+        --cxx=${CMAKE_CXX_COMPILER}
+    )
+
+    if(CMAKE_SYSROOT)
+        list(APPEND FFMPEG_CONFIGURE_ARGS --sysroot=${CMAKE_SYSROOT})
+    endif()
+    if(CMAKE_AR)
+        list(APPEND FFMPEG_CONFIGURE_ARGS --ar=${CMAKE_AR})
+    endif()
+    if(CMAKE_RANLIB)
+        list(APPEND FFMPEG_CONFIGURE_ARGS --ranlib=${CMAKE_RANLIB})
+    endif()
+    if(CMAKE_STRIP)
+        list(APPEND FFMPEG_CONFIGURE_ARGS --strip=${CMAKE_STRIP})
+    endif()
+
+    message(STATUS "FFmpeg will be cross-compiled with ${CMAKE_C_COMPILER}")
+endif()
+
 # Verify the version of ffmpeg libraries over at https://ffmpeg.org/download.html
 find_package(PkgConfig)
 pkg_check_modules(LIBAV libavformat>=60.16.100 libavcodec>=60.31.102 libswscale>=7.5.100 libavutil>=58.29.100)
@@ -24,16 +63,5 @@ ExternalProject_Add(
     URL_MD5 cce359cad7ed0d4f0079f7864080ad36
     INSTALL_COMMAND make install
     TEST_COMMAND    ""
-    CONFIGURE_COMMAND   <SOURCE_DIR>/configure 
-                        --enable-pic 
-                        --enable-shared 
-                        --enable-static 
-                        --enable-avfilter 
-                        --enable-vaapi 
-                        --extra-cflags=-I/include 
-                        --extra-ldflags=-L/lib 
-                        --extra-libs=-lpthread 
-                        --extra-libs=-lm 
-                        --disable-programs
-                        --prefix==${CMAKE_BINARY_DIR}/install 
+    CONFIGURE_COMMAND   <SOURCE_DIR>/configure ${FFMPEG_CONFIGURE_ARGS}
 )

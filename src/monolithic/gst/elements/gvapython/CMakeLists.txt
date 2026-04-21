@@ -12,6 +12,41 @@ pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(PYGOBJECT pygobject-3.0)
 find_package(Python 3.10 COMPONENTS Development)
 
+set(_PYGOBJECT_INCLUDE_DIRS_NORMALIZED)
+foreach(_inc IN LISTS PYGOBJECT_INCLUDE_DIRS)
+    set(_normalized_inc "${_inc}")
+
+    # pkg-config with PKG_CONFIG_SYSROOT_DIR can prepend sysroot to already
+    # absolute local build paths (for bundled deps). Strip it when needed.
+    if(CMAKE_SYSROOT AND _inc MATCHES "^${CMAKE_SYSROOT}/")
+        string(REPLACE "${CMAKE_SYSROOT}" "" _candidate_inc "${_inc}")
+        if(IS_ABSOLUTE "${_candidate_inc}" AND EXISTS "${_candidate_inc}")
+            set(_normalized_inc "${_candidate_inc}")
+        endif()
+    endif()
+
+    # If pkg-config returned a path that was prefixed by another sysroot,
+    # recover the real workspace path for bundled gstreamer-bin includes.
+    if(NOT EXISTS "${_normalized_inc}" AND _normalized_inc MATCHES "/build-riscv/deps/gstreamer-bin/")
+        string(REGEX REPLACE "^.*(/build-riscv/deps/gstreamer-bin/.*)$" "\\1" _bundled_tail "${_normalized_inc}")
+        if(_bundled_tail MATCHES "^/build-riscv/deps/gstreamer-bin/")
+            set(_candidate_inc "${PROJECT_SOURCE_DIR}${_bundled_tail}")
+            if(EXISTS "${_candidate_inc}")
+                set(_normalized_inc "${_candidate_inc}")
+            endif()
+        endif()
+    endif()
+
+    list(APPEND _PYGOBJECT_INCLUDE_DIRS_NORMALIZED "${_normalized_inc}")
+
+    # Sources include <pygobject-3.0/pygobject.h>, so keep parent include dir.
+    if(_normalized_inc MATCHES "/pygobject-3\\.0$")
+        get_filename_component(_pygobject_parent_inc "${_normalized_inc}" DIRECTORY)
+        list(APPEND _PYGOBJECT_INCLUDE_DIRS_NORMALIZED "${_pygobject_parent_inc}")
+    endif()
+endforeach()
+list(REMOVE_DUPLICATES _PYGOBJECT_INCLUDE_DIRS_NORMALIZED)
+
 if (NOT PYGOBJECT_FOUND OR NOT Python_FOUND)
     message("Python library not found, skipping gvapython build")
     return()
@@ -37,7 +72,7 @@ PRIVATE
     ${GLIB2_INCLUDE_DIRS}
     ${GSTREAMER_INCLUDE_DIRS}
     ${Python_INCLUDE_DIRS}
-    ${PYGOBJECT_INCLUDE_DIRS}
+    ${_PYGOBJECT_INCLUDE_DIRS_NORMALIZED}
 )
 
 target_link_libraries(${TARGET_NAME}
