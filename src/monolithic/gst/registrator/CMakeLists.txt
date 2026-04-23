@@ -77,4 +77,8 @@ if(ENABLE_GENAI)
     target_link_libraries(${TARGET_NAME} PRIVATE gvagenai)
 endif()
 
+if(ENABLE_RISCV AND TARGET viplite_umd)
+    target_link_libraries(${TARGET_NAME} PRIVATE viplite_umd)
+endif()
+
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

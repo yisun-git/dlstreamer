@@ -120,6 +120,7 @@ option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
 option(ENABLE_REALSENSE "Parameter to enable RelaseSense plugin compilation" OFF)
 option(ENABLE_GENAI "Enables GenAI elements" OFF)
 option(ENABLE_RISCV "Enable RISC-V build mode (disables OpenVINO-dependent components)" ON)
+set(VSI_UMD_LIB_DIR "" CACHE PATH "Directory containing libNBGlinker.so and libVIPhal.so")
 # Enable GenAI by default on Windows.
 # It can be enabled on Ubuntu but there is no support for Fedora.
 if(WIN32)
@@ -161,6 +162,44 @@ endif()
 message("ENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION}")
 message("ENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION}")
 message("ENABLE_REALSENSE=${ENABLE_REALSENSE}")
+
+if(ENABLE_RISCV)
+    if(NOT UNIX)
+        message(FATAL_ERROR "ENABLE_RISCV is supported on UNIX platforms only")
+    endif()
+
+    set(_VSI_UMD_CANDIDATE_DIRS)
+    if(VSI_UMD_LIB_DIR)
+        list(APPEND _VSI_UMD_CANDIDATE_DIRS "${VSI_UMD_LIB_DIR}")
+    endif()
+    if(DEFINED ENV{VSI_UMD_LIB_DIR} AND NOT "$ENV{VSI_UMD_LIB_DIR}" STREQUAL "")
+        list(APPEND _VSI_UMD_CANDIDATE_DIRS "$ENV{VSI_UMD_LIB_DIR}")
+    endif()
+    list(APPEND _VSI_UMD_CANDIDATE_DIRS
+        "${CMAKE_SOURCE_DIR}/thirdparty/vsi/riscv64/lib"
+        "${CMAKE_SOURCE_DIR}/../vsi/vsi_ubuntu_files"
+    )
+    list(REMOVE_DUPLICATES _VSI_UMD_CANDIDATE_DIRS)
+
+    find_library(VSI_NBGLINKER_LIB NAMES NBGlinker libNBGlinker.so HINTS ${_VSI_UMD_CANDIDATE_DIRS})
+    find_library(VSI_VIPHAL_LIB NAMES VIPhal libVIPhal.so HINTS ${_VSI_UMD_CANDIDATE_DIRS})
+
+    if(NOT VSI_NBGLINKER_LIB OR NOT VSI_VIPHAL_LIB)
+        message(FATAL_ERROR
+            "ENABLE_RISCV=ON but failed to find both libNBGlinker.so and libVIPhal.so. "
+            "Checked candidate dirs: ${_VSI_UMD_CANDIDATE_DIRS}. "
+            "Please pass -DVSI_UMD_LIB_DIR=<dir> or make VSI_UMD_LIB_DIR=<dir>."
+        )
+    endif()
+
+    get_filename_component(VSI_UMD_LIB_DIR "${VSI_NBGLINKER_LIB}" DIRECTORY)
+
+    add_library(viplite_umd INTERFACE)
+    target_link_libraries(viplite_umd INTERFACE ${VSI_NBGLINKER_LIB} ${VSI_VIPHAL_LIB})
+
+    message(STATUS "ENABLE_RISCV=ON")
+    message(STATUS "VSI_UMD_LIB_DIR=${VSI_UMD_LIB_DIR}")
+endif()
 
 # Define compiler flags
 

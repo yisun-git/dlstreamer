@@ -114,3 +114,7 @@ if(WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE ${dlfcn-win32_LIBRARIES})
     target_link_libraries(${TARGET_NAME} PRIVATE d3d11_wrapper image_inference_async_d3d11)
 endif()
+
+    if(ENABLE_RISCV AND TARGET viplite_umd)
+      target_link_libraries(${TARGET_NAME} PRIVATE viplite_umd)
+endif()
